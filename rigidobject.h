@@ -13,9 +13,11 @@
 #include <fstream>
 #include <QtCore/QtCore>
 
+#include "physics.h"
+
 class RigidObject{
 public:
-	RigidObject(Physics *physics);
+	RigidObject(class Physics *physics);
 	virtual ~RigidObject();
 
 //	void Add(App *app);

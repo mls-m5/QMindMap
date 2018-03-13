@@ -47,6 +47,7 @@ public:
 protected:
 	void timerEvent(QTimerEvent*);
 	void transformPainter(QPainter *painter, RigidObject *object);
+	void stepPhysics();
 
     Physics physics;
     std::list<RigidObject*> objects;

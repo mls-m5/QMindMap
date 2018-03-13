@@ -11,10 +11,7 @@ RigidObject::RigidObject(Physics *physics):
 level(0),
 rigidParent(0),
 physics(physics)
-//	Unit(game, local)
 {
-//	type = COL_BOX;
-//	mask = COL_COLLIDABLE;
 	rigidBody = 0;
 }
 

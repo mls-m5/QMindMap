@@ -50,12 +50,24 @@ double linRand(double min, double max){
 }
 
 RigidObject* Canvas::createNewChildBox(QString text, RigidObject* parent) {
-	btVector3 pos(0,0,0);
+	btVector3 pos(0,0,0), root(0,0,0);
+
+	for (auto it: objects){
+		if (it->level == 0){
+			root = it->getOrigin();
+			break;
+		}
+	}
+
 	if (selected){
 		pos = selected->getOrigin();
 		auto w = selected->width;
 		auto h = selected->height;
-		pos.setValue(linRand(-w, w) + pos.x(), linRand(-h, h) + pos.y(), 0);
+		auto rootD = pos - root;
+		if (rootD.length2()){
+			rootD.normalize();
+		}
+		pos.setValue(linRand(-w, w) + w * rootD.x() + pos.x(), linRand(-h, h) + w*rootD.y() + pos.y(), 0);
 	}
 	return createNewBox(pos.x(), pos.y(), text, parent);
 }
@@ -138,6 +150,9 @@ void Canvas::load(QString filename) {
 			previous = createNewChildBox(qline, 0);
 		}
 
+		for (int i = 0; i < 10; ++i){
+			stepPhysics();
+		}
 	}
 }
 
@@ -174,29 +189,33 @@ void Canvas::transformPainter(QPainter *painter, RigidObject *object) {
 	painter->translate(-object->width / 2., -object->height / 2);
 }
 
+void Canvas::stepPhysics() {
+	for (auto it : objects) {
+		auto p1 = it->getOrigin();
+		if (it->rigidParent) {
+			auto p2 = it->rigidParent->getOrigin();
+			auto f = (p2 - p1).normalize() * 10 / (1 + it->level);
+			//			auto dist = f.length();
+			//			f *= (100 - dist) * 10 / (1+it->level);
+			it->rigidBody->applyCentralForce(f);
+			it->rigidParent->rigidBody->applyCentralForce(-f);
+		}
+		it->rigidBody->setAngularVelocity(
+				it->rigidBody->getAngularVelocity() / 1.1);
+		it->rigidBody->setLinearVelocity(
+				it->rigidBody->getLinearVelocity() / 1.1);
+	}
+	physics.Step(.1);
+}
+
 void Canvas::paintEvent(QPaintEvent* e) {
 	auto painter = new QPainter(this);
 	painter->save();
 	painter->setBrush(QColor("white"));
 	painter->drawRect(e->rect());
 	painter->setRenderHint(QPainter::Antialiasing, true);
-	for (auto it: objects){
-		auto p1 = it->getOrigin();
-		if (it->rigidParent){
-			auto p2 = it->rigidParent->getOrigin();
-			auto f = (p2 - p1).normalize() * 10 / (1 + it->level);
-//			auto dist = f.length();
-//			f *= (100 - dist) * 10 / (1+it->level);
-
-			it->rigidBody->applyCentralForce(f);
-			it->rigidParent->rigidBody->applyCentralForce(-f);
-		}
-		it->rigidBody->setAngularVelocity(it->rigidBody->getAngularVelocity() / 1.1);
-		it->rigidBody->setLinearVelocity(it->rigidBody->getLinearVelocity() / 1.1);
-	}
-
-	physics.Step(.1);
-	painter->translate(100, 100);
+	stepPhysics();
+	painter->translate(200, 200);
 
 
 	for (auto it: objects){
@@ -238,8 +257,8 @@ RigidObject* Canvas::createNewBox(qreal x, qreal y, QString text, RigidObject *p
 	QFontMetrics fm(font);
 	int pixelsWide = fm.width(text);
 	int pixelsHigh = fm.height();
-	auto rigidObject = new RigidObject(physics);
-	if (pixelsWide / pixelsHigh < 10){
+	auto rigidObject = new RigidObject(&physics);
+	if (pixelsWide / pixelsHigh < 3){
 		rigidObject->rigidBody = physics.createRigidSphere(btVector3(x, y, 0),
 				pixelsWide / 2, (double)10 / (1 + level));
 	}
@@ -277,6 +296,9 @@ void Canvas::mouseReleaseEvent(QMouseEvent* e) {
 }
 
 void Canvas::mouseMoveEvent(QMouseEvent* e) {
+	if (e->button() == Qt::RightButton){
+
+	}
 }
 
 void Canvas::timerEvent(QTimerEvent*) {
